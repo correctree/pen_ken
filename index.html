@@ -27,6 +27,8 @@
   .key-enter:active{background:rgba(83,74,183,0.9);}
   .key-back{max-width:48px;background:rgba(255,100,100,0.15);font-size:18px;}
   .key-back:active{background:rgba(255,100,100,0.35);}
+  .key-space{max-width:160px;flex:4;background:rgba(255,255,255,0.06);font-size:11px;letter-spacing:0.04em;}
+  .key-space:active{background:rgba(175,153,236,0.3);}
 </style>
 </head>
 <body>
@@ -79,7 +81,8 @@ function resizeCanvas() {
 const ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
   ['A','S','D','F','G','H','J','K','L'],
-  ['ENTER','Z','X','C','V','B','N','M','⌫']
+  ['ENTER','Z','X','C','V','B','N','M','⌫'],
+  ['SPACE']
 ];
 const keypadRows = document.getElementById('keypad-rows');
 ROWS.forEach(row => {
@@ -90,7 +93,8 @@ ROWS.forEach(row => {
     btn.className = 'key';
     if (k === 'ENTER') btn.classList.add('key-enter');
     if (k === '⌫') btn.classList.add('key-back');
-    btn.textContent = k;
+    if (k === 'SPACE') btn.classList.add('key-space');
+    btn.textContent = k === 'SPACE' ? 'SPACE' : k;
     btn.addEventListener('touchstart', e => { e.preventDefault(); handleKeyInput(k); }, {passive:false});
     btn.addEventListener('mousedown', e => { e.preventDefault(); handleKeyInput(k); });
     rowEl.appendChild(btn);
@@ -351,10 +355,21 @@ function addChar(ch){
   preview.push({char:u,color,size,x:W/2+totalW/2+size,targetX:0});
   reflow();
 }
+// スペース: 空白1文字分の隙間を挿入（描画しないダミー要素）
+function addSpace(){
+  const size=Math.round(rnd(sizeMin(),sizeMax()));
+  const totalW=preview.reduce((s,c)=>s+c.size*1.4,0);
+  preview.push({char:' ',color:'transparent',size,x:W/2+totalW/2+size,targetX:0,isSpace:true});
+  reflow();
+}
 function removeLastChar(){ if(preview.length){preview.pop();reflow();} }
 function dropChars(){
   if(!preview.length) return;
-  preview.forEach(c=>{ letters.push({char:c.char,x:c.x,y:previewY(),vx:rnd(-0.2,0.2),vy:0,size:c.size,color:c.color,rot:0,rotV:rnd(-0.008,0.008),alpha:1,cooldown:0}); });
+  // スペースはスキップして文字だけ落下
+  preview.forEach(c=>{
+    if(c.isSpace) return;
+    letters.push({char:c.char,x:c.x,y:previewY(),vx:rnd(-0.2,0.2),vy:0,size:c.size,color:c.color,rot:0,rotV:rnd(-0.008,0.008),alpha:1,cooldown:0});
+  });
   preview=[];
 }
 
@@ -400,6 +415,7 @@ function drawPreview(){
   }
   preview.forEach(c=>{c.x+=(c.targetX-c.x)*0.25;});
   preview.forEach(c=>{
+    if(c.isSpace) return; // スペースは描画しない
     ctx.font=letterFont(c.size); ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.shadowColor=c.color; ctx.shadowBlur=10; ctx.fillStyle=c.color;
     ctx.fillText(c.char,c.x,previewY()); ctx.shadowBlur=0;
@@ -480,15 +496,17 @@ function handleKeyInput(k){
   if(!started) return;
   if(k==='ENTER'){ dropChars(); return; }
   if(k==='⌫'){ removeLastChar(); return; }
+  if(k==='SPACE'){ addSpace(); return; }
   addChar(k);
 }
 
 // PCキーボード
 window.addEventListener('keydown',e=>{
   if(!started) return;
-  if(['Enter','Backspace'].includes(e.key)) e.preventDefault();
+  if(['Enter','Backspace',' '].includes(e.key)) e.preventDefault();
   if(e.key==='Enter'){ dropChars(); return; }
   if(e.key==='Backspace'){ removeLastChar(); return; }
+  if(e.key===' '){ addSpace(); return; }
   if(e.key.length===1) addChar(e.key);
 });
 
